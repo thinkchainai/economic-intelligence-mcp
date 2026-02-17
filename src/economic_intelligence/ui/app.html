@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Economic Intelligence</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0f172a; --bg-card: #1e293b; --bg-hover: #253048;
+    --border: #334155; --border-light: #1e293b;
+    --text: #f1f5f9; --text-2: #e2e8f0; --text-3: #cbd5e1;
+    --text-muted: #94a3b8; --text-dim: #64748b; --text-faint: #475569;
+    --blue: #3b82f6; --blue-hover: #2563eb;
+    --green: #10b981; --yellow: #f59e0b; --red: #ef4444;
+    --radius: 8px;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text-2); line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { padding: 16px 20px; }
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 2px; }
+  .header h1 { font-size: 19px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+  .header .sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .ask-btn {
+    padding: 7px 14px; border-radius: 6px; border: none;
+    background: var(--blue); color: #fff; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; display: none; align-items: center; gap: 5px; flex-shrink: 0;
+  }
+  .ask-btn:hover { background: var(--blue-hover); }
+  .ask-btn:disabled { opacity: 0.5; cursor: wait; }
+  .tab-bar {
+    display: flex; gap: 0; margin: 10px -20px 0; padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 9px 13px; font-size: 12px; font-weight: 500;
+    color: var(--text-dim); border-bottom: 2px solid transparent;
+    cursor: pointer; white-space: nowrap; transition: all 0.15s; user-select: none;
+  }
+  .tab:hover { color: var(--text-muted); }
+  .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .toolbar { display: flex; align-items: center; gap: 6px; margin: 12px 0 10px; }
+  .toolbar.hidden { display: none; }
+  .period-btn {
+    padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-dim); font-size: 11px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .period-btn:hover { border-color: var(--blue); color: var(--text-2); }
+  .period-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .period-btn:disabled { opacity: 0.5; cursor: wait; }
+  .content { margin-top: 12px; }
+  .loading-state {
+    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
+    padding: 40px 0; color: var(--text-dim); font-size: 13px;
+  }
+  .spinner {
+    width: 22px; height: 22px; border: 2px solid var(--border); border-top-color: var(--blue);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 0.8s linear infinite; }
+  .error-banner {
+    background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+    border-radius: var(--radius); padding: 10px 14px; margin: 8px 0;
+    font-size: 13px; color: #fca5a5; display: none;
+  }
+  .error-banner.visible { display: block; }
+  .summary-text { font-size: 13px; color: var(--text-muted); margin-top: 12px; line-height: 1.6; }
+  .chart-wrap { position: relative; width: 100%; height: 280px; }
+  .chart-wrap canvas { display: block; }
+  .chart-tooltip {
+    position: absolute; display: none; background: #1e293b; border: 1px solid #334155;
+    border-radius: 6px; padding: 8px 10px; font-size: 11px; color: #e2e8f0;
+    pointer-events: none; z-index: 10; white-space: nowrap; line-height: 1.6;
+  }
+  .chart-tooltip .tt-date { color: #94a3b8; margin-bottom: 2px; font-size: 10px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+  .legend-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--text-muted); cursor: pointer; transition: opacity 0.15s;
+  }
+  .legend-item.hidden { opacity: 0.35; text-decoration: line-through; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .prob-card { background: var(--bg-card); border-radius: 12px; padding: 22px; margin-bottom: 14px; text-align: center; }
+  .prob-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .prob-value { font-size: 42px; font-weight: 700; margin: 6px 0; }
+  .prob-text { font-size: 13px; color: var(--text-3); line-height: 1.6; max-width: 480px; margin: 0 auto; }
+  .gauge { width: 180px; height: 90px; margin: 12px auto; position: relative; overflow: hidden; }
+  .gauge-bg { width: 180px; height: 90px; border-radius: 90px 90px 0 0; background: linear-gradient(90deg, var(--green) 0%, var(--yellow) 50%, var(--red) 100%); position: absolute; top: 0; }
+  .gauge-cover { width: 140px; height: 70px; border-radius: 70px 70px 0 0; background: var(--bg-card); position: absolute; top: 20px; left: 20px; }
+  .gauge-needle { width: 2px; height: 62px; background: var(--text); position: absolute; bottom: 0; left: 50%; transform-origin: bottom center; border-radius: 2px; transition: transform 0.6s ease-out; }
+  .section-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .section-label-text { font-size: 14px; font-weight: 600; color: var(--text); }
+  .section-label-count { font-size: 11px; color: var(--text-dim); }
+  .signals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+  .signal-card { background: var(--bg-card); border-radius: var(--radius); padding: 14px; border-left: 3px solid var(--border); cursor: pointer; transition: all 0.15s; }
+  .signal-card:hover { background: var(--bg-hover); }
+  .signal-card.high { border-left-color: var(--red); }
+  .signal-card.medium { border-left-color: var(--yellow); }
+  .signal-card.low { border-left-color: var(--green); }
+  .signal-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .signal-badge { font-size: 11px; font-weight: 600; margin-top: 3px; padding: 1px 7px; border-radius: 4px; display: inline-block; }
+  .signal-badge.high { background: #ef444430; color: #fca5a5; }
+  .signal-badge.medium { background: #f59e0b30; color: #fcd34d; }
+  .signal-badge.low { background: #10b98130; color: #6ee7b7; }
+  .signal-desc { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+  .signal-tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag { font-size: 10px; padding: 1px 6px; border-radius: 3px; background: var(--border); color: var(--text-muted); }
+  .health-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .health-stat { background: var(--bg-card); border-radius: var(--radius); padding: 14px; text-align: center; }
+  .health-val { font-size: 22px; font-weight: 700; color: var(--text); }
+  .health-label { font-size: 10px; color: var(--text-muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .failures-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+  .failure-item { display: flex; justify-content: space-between; align-items: center; padding: 7px 12px; border-radius: 6px; margin-bottom: 3px; background: var(--bg-card); font-size: 12px; }
+  .failure-name { color: var(--text-2); font-weight: 500; }
+  .failure-meta { color: var(--text-dim); font-size: 11px; }
+  .search-form { display: flex; gap: 8px; margin-bottom: 14px; }
+  .search-input { flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-2); font-size: 13px; outline: none; transition: border-color 0.15s; }
+  .search-input:focus { border-color: var(--blue); }
+  .search-input::placeholder { color: var(--text-dim); }
+  .search-btn { padding: 8px 16px; border-radius: 6px; border: none; background: var(--blue); color: #fff; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .search-btn:hover { background: var(--blue-hover); }
+  .search-btn:disabled { opacity: 0.5; cursor: wait; }
+  .search-item { padding: 10px 12px; border-radius: 6px; margin-bottom: 4px; background: var(--bg-card); transition: background 0.15s; }
+  .search-item:hover { background: var(--bg-hover); }
+  .search-item-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .search-item-id { font-size: 11px; color: var(--blue); font-family: monospace; margin-left: 6px; }
+  .search-item-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .tools-intro { font-size: 13px; color: var(--text-3); line-height: 1.7; margin-bottom: 16px; }
+  .tools-intro strong { color: var(--text); font-weight: 600; }
+  .tools-intro code { background: var(--bg-card); padding: 1px 5px; border-radius: 3px; font-size: 12px; color: var(--blue); }
+  .tool-card { background: var(--bg-card); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px; border: 1px solid transparent; transition: all 0.15s; }
+  .tool-card:hover { border-color: var(--border); }
+  .tool-card-head { display: flex; align-items: center; gap: 8px; }
+  .tool-card-icon { font-size: 18px; width: 28px; text-align: center; flex-shrink: 0; }
+  .tool-card-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .tool-card-badge { font-size: 10px; padding: 1px 6px; border-radius: 3px; background: var(--border); color: var(--text-muted); font-family: monospace; margin-left: auto; flex-shrink: 0; }
+  .tool-card-badge.interactive { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .tool-card-badge.stateful { background: rgba(139,92,246,0.15); color: #a78bfa; }
+  .tool-card-desc { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+  .tool-card-row { display: flex; gap: 16px; margin-top: 6px; font-size: 11px; }
+  .tool-card-row .label { color: var(--text-faint); }
+  .tool-card-row code { color: var(--text-dim); font-family: monospace; font-size: 11px; }
+  .tool-card-row .source { color: var(--text-dim); }
+  .prompt { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 220px; text-align: center; color: var(--text-dim); gap: 6px; }
+  .prompt-text { font-size: 14px; }
+  .prompt-hint { font-size: 12px; color: var(--text-faint); }
+  .updated { font-size: 11px; color: var(--text-faint); text-align: center; margin-top: 10px; }
+  .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--border-light); font-size: 11px; color: var(--text-faint); display: flex; justify-content: space-between; align-items: center; }
+  .footer a { color: var(--text-dim); text-decoration: none; transition: color 0.15s; }
+  .footer a:hover { color: var(--blue); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div>
+      <h1 id="appTitle">Economic Intelligence</h1>
+      <div class="sub">Live data from FRED, BLS, Treasury &amp; FDIC</div>
+    </div>
+    <button class="ask-btn" id="askBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      Ask AI
+    </button>
+  </div>
+  <div class="tab-bar" id="tabBar"></div>
+  <div id="errorBanner" class="error-banner"></div>
+  <div class="toolbar hidden" id="toolbar">
+    <button class="period-btn" data-period="1y">1Y</button>
+    <button class="period-btn" data-period="2y">2Y</button>
+    <button class="period-btn active" data-period="5y">5Y</button>
+    <button class="period-btn" data-period="10y">10Y</button>
+    <button class="period-btn" data-period="20y">20Y</button>
+  </div>
+  <div class="content" id="content">
+    <div class="loading-state"><div class="spinner"></div><span>Initializing...</span></div>
+  </div>
+  <div class="footer">
+    <span>FRED · BLS · Treasury · FDIC</span>
+    <a href="https://mcpbundles.com" target="_blank">mcpbundles.com ↗</a>
+  </div>
+</div>
+
+<script>
+// ==========================================================================
+// Config
+// ==========================================================================
+var TAB_ORDER = ['overview','rates','inflation','jobs','housing','gdp','treasury','banking','compare','search','tools'];
+var TABS = {
+  overview:  { label: 'Overview',  tool: 'open_economic_app',   type: 'dashboard' },
+  rates:     { label: 'Rates',     tool: 'econ_interest_rates', type: 'chart', hasPeriod: true },
+  inflation: { label: 'Inflation', tool: 'econ_inflation',      type: 'chart', hasPeriod: true },
+  jobs:      { label: 'Jobs',      tool: 'econ_jobs',           type: 'chart', hasPeriod: true },
+  housing:   { label: 'Housing',   tool: 'econ_housing',        type: 'chart', hasPeriod: true },
+  gdp:       { label: 'GDP',       tool: 'econ_gdp',            type: 'chart', hasPeriod: true },
+  treasury:  { label: 'Treasury',  tool: 'econ_treasury',       type: 'chart', hasPeriod: true },
+  banking:   { label: 'Banking',   tool: 'econ_bank_health',    type: 'banking' },
+  compare:   { label: 'Compare',   tool: 'econ_compare',        type: 'chart', hasPeriod: true, needsArgs: true },
+  search:    { label: 'Search',    tool: 'econ_search',         type: 'search', needsArgs: true },
+  tools:     { label: 'Tools',     tool: null,                  type: 'tools' }
+};
+var TOOL_CATALOG = [
+  { name: 'open_economic_app', label: 'Open Economic App', icon: '📊', desc: 'Opens this interactive dashboard with recession probability, signal analysis, and data explorer.', usage: 'No arguments needed — just call it.', source: 'FRED + BLS + Treasury + FDIC' },
+  { name: 'econ_interest_rates', label: 'Interest Rates', icon: '📈', desc: 'Fed funds rate, 10-year & 30-year treasury yields, 30-year mortgage rate, and yield curve.', usage: 'econ_interest_rates(period="5y")', source: 'FRED' },
+  { name: 'econ_inflation', label: 'Inflation', icon: '💹', desc: 'CPI, PCE, and core inflation with year-over-year change calculations.', usage: 'econ_inflation(period="5y")', source: 'FRED' },
+  { name: 'econ_jobs', label: 'Employment', icon: '👷', desc: 'Unemployment rate, nonfarm payrolls, wage growth, and job openings (JOLTS).', usage: 'econ_jobs(period="5y")', source: 'FRED / BLS' },
+  { name: 'econ_housing', label: 'Housing', icon: '🏠', desc: 'Housing starts, permits, Case-Shiller home prices, mortgage rates, and affordability scoring.', usage: 'econ_housing(period="5y")', source: 'FRED' },
+  { name: 'econ_gdp', label: 'GDP', icon: '🏛️', desc: 'Nominal GDP, real GDP, and annualized growth rate.', usage: 'econ_gdp(period="10y")', source: 'FRED / BEA' },
+  { name: 'econ_treasury', label: 'Treasury & Debt', icon: '🏦', desc: 'Treasury yields, yield spreads, and total federal public debt.', usage: 'econ_treasury(period="5y")', source: 'Treasury Fiscal Data' },
+  { name: 'econ_bank_health', label: 'Banking Health', icon: '🏧', desc: 'FDIC bank health indicators — total institutions, problem banks, capital ratios, and recent failure history.', usage: 'econ_bank_health(years=5)', source: 'FDIC' },
+  { name: 'econ_compare', label: 'Compare Series', icon: '⚖️', desc: 'Compare any two FRED series side by side with correlation analysis.', usage: 'econ_compare(series_a="UNRATE", series_b="CPIAUCSL", period="5y")', source: 'FRED' },
+  { name: 'econ_search', label: 'Search FRED', icon: '🔍', desc: 'Search across 800,000+ FRED series by keyword.', usage: 'econ_search(query="mortgage rate", limit=20)', source: 'FRED' },
+  { name: 'econ_signal_history', label: 'Signal History', icon: '📉', desc: 'How economic signals have changed over time. Backfilled 12 months on first run, updated every 6 hours. Tracks yield curve, jobs/inflation divergence, bank stress, and recession probability.', usage: 'econ_signal_history(signal_name="", months=12)', source: 'Local SQLite (computed)', stateful: true },
+  { name: 'econ_changes', label: 'Recent Changes', icon: '🔄', desc: 'What shifted since a given date — compares latest signal values to prior snapshots. Surfaces significant score changes across all tracked signals.', usage: 'econ_changes(since_days=7)', source: 'Local SQLite (computed)', stateful: true },
+  { name: 'econ_alerts', label: 'Alerts', icon: '🚨', desc: 'Active economic alerts — threshold crossings (signals above 60% or below 30%), trend reversals (3+ month trend then reversal), and recession probability shifts.', usage: 'econ_alerts()', source: 'Local SQLite (computed)', stateful: true }
+];
+var TOOL_TO_TAB = {}; for (var k in TABS) TOOL_TO_TAB[TABS[k].tool] = k;
+var COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899','#14b8a6','#a855f7'];
+
+// ==========================================================================
+// State
+// ==========================================================================
+var S = { mcpReady: false, nextId: 1, toolName: null, activeTab: null, tabData: {}, tabPeriod: {}, initialInput: null, hiddenSeries: {} };
+var pending = new Map();
+
+// ==========================================================================
+// MCP Client
+// ==========================================================================
+function initMCP() {
+  var id = S.nextId++;
+  post({ jsonrpc:'2.0', id:id, method:'ui/initialize', params:{
+    appCapabilities:{}, appInfo:{name:'Economic Intelligence',version:'1.0.0'}, protocolVersion:'2025-06-18'
+  }});
+  pending.set(id, function(r) {
+    S.mcpReady = true;
+    if (r.hostContext && r.hostContext.toolInfo && r.hostContext.toolInfo.tool) S.toolName = r.hostContext.toolInfo.tool.name;
+    post({ jsonrpc:'2.0', method:'ui/notifications/initialized', params:{} });
+  });
+}
+function post(m) { window.parent.postMessage(m, '*'); }
+function callTool(name, args) {
+  if (!S.mcpReady) return Promise.reject(new Error('Not ready'));
+  var id = S.nextId++;
+  return new Promise(function(ok, fail) {
+    pending.set(id, ok);
+    post({ jsonrpc:'2.0', id:id, method:'tools/call', params:{name:name, arguments:args} });
+    setTimeout(function() { if (pending.has(id)) { pending.delete(id); fail(new Error('Timeout')); } }, 60000);
+  });
+}
+function sendMsg(text) {
+  if (!S.mcpReady) return Promise.resolve();
+  var id = S.nextId++;
+  return new Promise(function(ok, fail) {
+    pending.set(id, ok);
+    post({ jsonrpc:'2.0', id:id, method:'ui/message', params:{role:'user', content:[{type:'text',text:text}]} });
+    setTimeout(function() { if (pending.has(id)) { pending.delete(id); fail(new Error('Timeout')); } }, 30000);
+  });
+}
+function extractData(o) {
+  if (!o || typeof o !== 'object') return null;
+  if (o.structuredContent && typeof o.structuredContent === 'object') return o.structuredContent;
+  if (o.content && Array.isArray(o.content)) { for (var i=0;i<o.content.length;i++) { if (o.content[i]&&o.content[i].type==='text'&&typeof o.content[i].text==='string') { try{return JSON.parse(o.content[i].text);}catch(e){} } } }
+  if (o.result && typeof o.result === 'object') { var r=extractData(o.result); if(r) return r; }
+  if (o.title||o.series||o.signals||o.recession_probability||o.query||o.health_summary) return o;
+  return null;
+}
+var _lastH = 0;
+var _resizeTimer = null;
+function notifySize() {
+  if (_resizeTimer) return;
+  _resizeTimer = setTimeout(function() {
+    _resizeTimer = null;
+    var h = document.documentElement.scrollHeight;
+    if (h !== _lastH && h > 0) {
+      _lastH = h;
+      post({ jsonrpc:'2.0', method:'ui/notifications/size-changed', params:{ width: document.documentElement.scrollWidth, height: h } });
+    }
+  }, 50);
+}
+var _ro = new ResizeObserver(notifySize);
+_ro.observe(document.documentElement);
+_ro.observe(document.body);
+window.addEventListener('message', function(e) {
+  var m = e.data; if (!m) return;
+  if (typeof m === 'string') { try{m=JSON.parse(m);}catch(x){return;} }
+  if (typeof m !== 'object' || m.jsonrpc !== '2.0') return;
+  if (m.id !== undefined && pending.has(m.id)) { var fn=pending.get(m.id); pending.delete(m.id); if(m.result!==undefined)fn(m.result); else if(m.error)showError(m.error.message||'Error'); return; }
+  if (m.method === 'ui/notifications/tool-result') { var d=extractData(m.params); if(d)onInitialData(d); }
+  if (m.method === 'ui/notifications/tool-input') { S.initialInput = (m.params&&m.params.arguments)||(m.params&&m.params.input)||m.params||null; }
+});
+function showError(m) { var b=document.getElementById('errorBanner'); b.textContent=m; b.classList.add('visible'); setTimeout(function(){b.classList.remove('visible');},8000); }
+
+// ==========================================================================
+// Inline Chart Renderer (zero dependencies)
+// ==========================================================================
+function drawChart(containerId, series, hiddenMap) {
+  var container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+
+  var visible = [];
+  for (var i = 0; i < series.length; i++) { if (!hiddenMap[i]) visible.push({ idx: i, s: series[i] }); }
+
+  var canvas = document.createElement('canvas');
+  canvas.style.cssText = 'width:100%;height:100%;display:block;';
+  container.appendChild(canvas);
+
+  var dpr = window.devicePixelRatio || 1;
+  var rect = container.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  var ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  var W = rect.width, H = rect.height;
+
+  var hasY1 = series.length > 1 && series[1].units !== series[0].units;
+  var pad = { t: 14, r: hasY1 ? 58 : 18, b: 34, l: 54 };
+  var pW = W - pad.l - pad.r, pH = H - pad.t - pad.b;
+  if (pW < 40 || pH < 40) return;
+
+  var allTs = [], yB = [{ mn: Infinity, mx: -Infinity }, { mn: Infinity, mx: -Infinity }];
+  for (var vi = 0; vi < visible.length; vi++) {
+    var s = visible[vi].s, ax = (visible[vi].idx > 0 && hasY1) ? 1 : 0;
+    s._pts = [];
+    for (var di = 0; di < (s.data||[]).length; di++) {
+      var ts = new Date(s.data[di].date).getTime(), v = s.data[di].value;
+      s._pts.push({ t: ts, v: v });
+      allTs.push(ts);
+      if (v < yB[ax].mn) yB[ax].mn = v;
+      if (v > yB[ax].mx) yB[ax].mx = v;
+    }
+    s._pts.sort(function(a, b) { return a.t - b.t; });
+  }
+  if (!allTs.length) { container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#64748b;font-size:13px">No data to chart</div>'; return; }
+
+  var xMn = Math.min.apply(null, allTs), xMx = Math.max.apply(null, allTs);
+  if (xMn === xMx) xMx = xMn + 86400000;
+  for (var a = 0; a < 2; a++) { var rng = yB[a].mx - yB[a].mn; if (rng === 0) rng = 1; yB[a].mn -= rng * 0.05; yB[a].mx += rng * 0.05; }
+
+  function xS(t) { return pad.l + (t - xMn) / (xMx - xMn) * pW; }
+  function yS(v, ax) { return pad.t + pH - (v - yB[ax].mn) / (yB[ax].mx - yB[ax].mn) * pH; }
+
+  // Grid
+  ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
+  for (var g = 0; g <= 4; g++) { var gy = pad.t + (pH / 4) * g; ctx.beginPath(); ctx.moveTo(pad.l, gy); ctx.lineTo(pad.l + pW, gy); ctx.stroke(); }
+
+  // Y labels
+  ctx.fillStyle = '#64748b'; ctx.font = '10px -apple-system,sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (var g = 0; g <= 4; g++) { var val = yB[0].mx - (yB[0].mx - yB[0].mn) * (g / 4); ctx.fillText(fmtVal(val), pad.l - 6, pad.t + (pH / 4) * g); }
+  if (hasY1) { ctx.textAlign = 'left'; for (var g = 0; g <= 4; g++) { var val = yB[1].mx - (yB[1].mx - yB[1].mn) * (g / 4); ctx.fillText(fmtVal(val), pad.l + pW + 6, pad.t + (pH / 4) * g); } }
+
+  // X labels
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  var nL = Math.min(6, Math.floor(pW / 72));
+  for (var g = 0; g <= nL; g++) {
+    var t = xMn + (xMx - xMn) * (g / nL);
+    var d = new Date(t);
+    ctx.fillText(d.toLocaleDateString('en', { month: 'short', year: '2-digit' }), xS(t), H - pad.b + 8);
+  }
+
+  // Lines
+  for (var vi = 0; vi < visible.length; vi++) {
+    var s = visible[vi].s, pts = s._pts, ax = (visible[vi].idx > 0 && hasY1) ? 1 : 0;
+    var col = COLORS[visible[vi].idx % COLORS.length];
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (var p = 0; p < pts.length; p++) { var x = xS(pts[p].t), y = yS(pts[p].v, ax); if (p === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.stroke();
+    if (visible.length === 1 && pts.length > 1) {
+      ctx.lineTo(xS(pts[pts.length - 1].t), pad.t + pH); ctx.lineTo(xS(pts[0].t), pad.t + pH); ctx.closePath();
+      ctx.fillStyle = col + '18'; ctx.fill();
+    }
+  }
+
+  // Tooltip
+  var tt = document.createElement('div'); tt.className = 'chart-tooltip';
+  container.appendChild(tt);
+
+  // Crosshair line
+  var crossCanvas = document.createElement('canvas');
+  crossCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;';
+  crossCanvas.width = canvas.width; crossCanvas.height = canvas.height;
+  container.appendChild(crossCanvas);
+  var crossCtx = crossCanvas.getContext('2d'); crossCtx.scale(dpr, dpr);
+
+  canvas.addEventListener('mousemove', function(ev) {
+    var cr = canvas.getBoundingClientRect();
+    var mx = ev.clientX - cr.left, my = ev.clientY - cr.top;
+    crossCtx.clearRect(0, 0, W, H);
+    if (mx < pad.l || mx > pad.l + pW || my < pad.t || my > pad.t + pH) { tt.style.display = 'none'; return; }
+
+    // Crosshair
+    crossCtx.strokeStyle = '#334155'; crossCtx.lineWidth = 1; crossCtx.setLineDash([4, 3]);
+    crossCtx.beginPath(); crossCtx.moveTo(mx, pad.t); crossCtx.lineTo(mx, pad.t + pH); crossCtx.stroke();
+    crossCtx.setLineDash([]);
+
+    var hoverT = xMn + (mx - pad.l) / pW * (xMx - xMn);
+    var lines = [], closestDate = null;
+    for (var vi = 0; vi < visible.length; vi++) {
+      var pts = visible[vi].s._pts, col = COLORS[visible[vi].idx % COLORS.length];
+      var best = 0, bestD = Infinity;
+      for (var p = 0; p < pts.length; p++) { var dist = Math.abs(pts[p].t - hoverT); if (dist < bestD) { bestD = dist; best = p; } }
+      if (pts[best]) {
+        if (!closestDate) closestDate = new Date(pts[best].t);
+        lines.push('<span style="color:' + col + '">●</span> ' + esc(visible[vi].s.title || visible[vi].s.series_id) + ': <b>' + pts[best].v.toLocaleString() + '</b>');
+        var dotX = xS(pts[best].t), dotY = yS(pts[best].v, (visible[vi].idx > 0 && hasY1) ? 1 : 0);
+        crossCtx.fillStyle = col; crossCtx.beginPath(); crossCtx.arc(dotX, dotY, 4, 0, Math.PI * 2); crossCtx.fill();
+      }
+    }
+    if (lines.length) {
+      var ds = closestDate.toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' });
+      tt.innerHTML = '<div class="tt-date">' + ds + '</div>' + lines.join('<br>');
+      tt.style.display = 'block';
+      var ttW = tt.offsetWidth, ttH = tt.offsetHeight;
+      tt.style.left = Math.min(mx + 14, W - ttW - 4) + 'px';
+      tt.style.top = Math.max(my - ttH / 2, 2) + 'px';
+    }
+  });
+  canvas.addEventListener('mouseleave', function() { tt.style.display = 'none'; crossCtx.clearRect(0, 0, W, H); });
+}
+
+function fmtVal(v) {
+  var abs = Math.abs(v);
+  if (abs >= 1e12) return (v / 1e12).toFixed(1) + 'T';
+  if (abs >= 1e9) return (v / 1e9).toFixed(1) + 'B';
+  if (abs >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+  if (abs >= 1e4) return (v / 1e3).toFixed(0) + 'K';
+  if (v === Math.floor(v)) return v.toString();
+  return v.toFixed(2);
+}
+
+// ==========================================================================
+// Tabs
+// ==========================================================================
+function buildTabs() {
+  var bar = document.getElementById('tabBar');
+  for (var i = 0; i < TAB_ORDER.length; i++) {
+    var el = document.createElement('div'); el.className = 'tab'; el.dataset.tab = TAB_ORDER[i];
+    el.textContent = TABS[TAB_ORDER[i]].label;
+    el.addEventListener('click', (function(tid) { return function() { switchTab(tid); }; })(TAB_ORDER[i]));
+    bar.appendChild(el);
+  }
+}
+function activateTabUI(tid) { var all = document.querySelectorAll('.tab'); for (var i = 0; i < all.length; i++) all[i].classList.toggle('active', all[i].dataset.tab === tid); }
+
+function switchTab(tabId) {
+  if (S.activeTab === tabId) return;
+  S.activeTab = tabId; S.hiddenSeries = {};
+  activateTabUI(tabId);
+  var tab = TABS[tabId];
+  document.getElementById('toolbar').className = tab.hasPeriod ? 'toolbar' : 'toolbar hidden';
+  if (tab.hasPeriod) setPeriodUI(S.tabPeriod[tabId] || '5y');
+  document.getElementById('appTitle').textContent = tab.label;
+  if (tab.type === 'tools') { renderTools(); return; }
+  if (S.tabData[tabId]) { renderTab(tabId, S.tabData[tabId]); return; }
+  if (tab.needsArgs) {
+    if (tabId === 'search') renderSearchForm();
+    else renderPrompt('Compare any two FRED series side by side', 'Ask your AI — e.g., "compare unemployment and inflation"');
+    return;
+  }
+  showLoading('Loading ' + tab.label.toLowerCase() + '...');
+  var args = {};
+  if (tab.hasPeriod) args.period = S.tabPeriod[tabId] || '5y';
+  if (tabId === 'banking') args.years = 5;
+  callTool(tab.tool, args).then(function(result) {
+    if (S.activeTab !== tabId) return;
+    var data = extractData(result);
+    if (data) { S.tabData[tabId] = data; renderTab(tabId, data); } else showLoading('No data available');
+  }).catch(function(err) { if (S.activeTab === tabId) showError(err.message); });
+}
+
+function onInitialData(data) {
+  var tabId = S.toolName ? TOOL_TO_TAB[S.toolName] : null;
+  if (!tabId) { if (data.recession_probability) tabId='overview'; else if (data.query) tabId='search'; else if (data.health_summary) tabId='banking'; else tabId='rates'; }
+  if (S.initialInput && S.initialInput.period) S.tabPeriod[tabId] = S.initialInput.period;
+  else if (data.period) S.tabPeriod[tabId] = data.period;
+  S.tabData[tabId] = data; S.activeTab = tabId; S.hiddenSeries = {};
+  activateTabUI(tabId);
+  var tab = TABS[tabId];
+  document.getElementById('toolbar').className = tab.hasPeriod ? 'toolbar' : 'toolbar hidden';
+  if (tab.hasPeriod) setPeriodUI(S.tabPeriod[tabId] || '5y');
+  document.getElementById('askBtn').style.display = 'flex';
+  renderTab(tabId, data);
+}
+
+function renderTab(tabId, data) {
+  document.getElementById('askBtn').style.display = 'flex';
+  var tab = TABS[tabId];
+  if (tab.type === 'dashboard') renderDashboard(data);
+  else if (tab.type === 'chart') renderChartView(data);
+  else if (tab.type === 'banking') renderBanking(data);
+  else if (tab.type === 'search') renderSearchResults(data);
+  
+}
+
+function showLoading(t) { document.getElementById('content').innerHTML = '<div class="loading-state"><div class="spinner"></div><span>' + esc(t) + '</span></div>'; }
+function renderPrompt(title, hint) { document.getElementById('content').innerHTML = '<div class="prompt"><span class="prompt-text">' + esc(title) + '</span><span class="prompt-hint">' + esc(hint) + '</span></div>'; }
+
+// ==========================================================================
+// Chart View
+// ==========================================================================
+function renderChartView(data) {
+  var c = document.getElementById('content');
+  c.innerHTML = '<div class="chart-wrap" id="chartArea"></div><div class="legend" id="leg"></div><div class="summary-text" id="summ"></div>';
+  if (data.title) document.getElementById('appTitle').textContent = data.title;
+  if (data.summary) document.getElementById('summ').textContent = data.summary;
+  var series = data.series || [];
+  if (!series.length) { c.innerHTML = '<div class="loading-state"><span>No chart data available</span></div>'; return; }
+  S.hiddenSeries = {};
+  drawChart('chartArea', series, S.hiddenSeries);
+  var leg = document.getElementById('leg');
+  series.forEach(function(s, i) {
+    var el = document.createElement('div'); el.className = 'legend-item';
+    el.innerHTML = '<span class="legend-dot" style="background:' + COLORS[i % COLORS.length] + '"></span>' + esc(s.title || s.series_id);
+    el.onclick = function() { S.hiddenSeries[i] = !S.hiddenSeries[i]; el.classList.toggle('hidden', !!S.hiddenSeries[i]); drawChart('chartArea', series, S.hiddenSeries); };
+    leg.appendChild(el);
+  });
+}
+
+// ==========================================================================
+// Dashboard (Overview)
+// ==========================================================================
+function renderDashboard(data) {
+  var recession = data.recession_probability || {}, prob = recession.probability || 0, signals = data.signals || [];
+  document.getElementById('appTitle').textContent = 'Economic Outlook';
+  var c = document.getElementById('content');
+  c.innerHTML =
+    '<div class="prob-card"><div class="prob-label">Recession Probability</div>' +
+    '<div class="gauge"><div class="gauge-bg"></div><div class="gauge-cover"></div><div class="gauge-needle" id="needle"></div></div>' +
+    '<div class="prob-value" id="pv">—</div><div class="prob-text" id="pt"></div></div>' +
+    '<div class="section-label"><span class="section-label-text">Economic Signals</span><span class="section-label-count" id="sc"></span></div>' +
+    '<div class="signals-grid" id="sg"></div><div class="updated" id="upd"></div>';
+  var pvEl = document.getElementById('pv');
+  pvEl.textContent = (prob * 100).toFixed(0) + '%';
+  pvEl.style.color = prob >= 0.6 ? '#ef4444' : prob >= 0.3 ? '#f59e0b' : '#10b981';
+  document.getElementById('needle').style.transform = 'rotate(' + (-90 + prob * 180) + 'deg)';
+  document.getElementById('pt').textContent = recession.assessment || data.summary || '';
+  document.getElementById('sc').textContent = signals.length + ' signal' + (signals.length !== 1 ? 's' : '');
+  var grid = document.getElementById('sg');
+  for (var i = 0; i < signals.length; i++) {
+    (function(sig) {
+      var lv = sig.score >= 0.6 ? 'high' : sig.score >= 0.3 ? 'medium' : 'low';
+      var card = document.createElement('div'); card.className = 'signal-card ' + lv;
+      var tags = '';
+      if (sig.tags && sig.tags.length) { tags = '<div class="signal-tags">'; for (var t = 0; t < sig.tags.length; t++) tags += '<span class="tag">' + esc(sig.tags[t].replace(/_/g, ' ')) + '</span>'; tags += '</div>'; }
+      card.innerHTML = '<div class="signal-name">' + esc(sig.title) + '</div><span class="signal-badge ' + lv + '">' + (sig.score * 100).toFixed(0) + '%</span><div class="signal-desc">' + esc(sig.summary) + '</div>' + tags;
+      card.addEventListener('click', function() { sendMsg('[Signal] ' + sig.title + ' (' + (sig.score * 100).toFixed(0) + '%) — ' + sig.summary + '\n\nExplain this signal.').catch(function(){}); });
+      grid.appendChild(card);
+    })(signals[i]);
+  }
+  document.getElementById('upd').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+
+// ==========================================================================
+// Banking
+// ==========================================================================
+function renderBanking(data) {
+  var h = data.health_summary || {}, fails = data.recent_failures || [];
+  document.getElementById('appTitle').textContent = 'Banking System Health';
+  var c = document.getElementById('content');
+  var stats = '<div class="health-grid">';
+  var items = [{ l:'Institutions', v:h.total_institutions }, { l:'Problem Banks', v:h.problem_institutions }, { l:'Total Assets', v:h.total_assets?'$'+(h.total_assets/1e12).toFixed(1)+'T':null }, { l:'Recent Failures', v:data.failure_count }];
+  for (var i = 0; i < items.length; i++) { if (items[i].v !== null && items[i].v !== undefined) stats += '<div class="health-stat"><div class="health-val">' + items[i].v + '</div><div class="health-label">' + items[i].l + '</div></div>'; }
+  stats += '</div>';
+  var fl = '';
+  if (fails.length) { fl = '<div class="failures-title">Recent Failures</div>'; for (var f = 0; f < Math.min(fails.length, 12); f++) { var r = fails[f]; fl += '<div class="failure-item"><span class="failure-name">' + esc(r.institution||r.name||'Unknown') + '</span><span class="failure-meta">' + esc((r.city||'')+(r.state?', '+r.state:'')+(r.failure_date?' · '+r.failure_date:'')) + '</span></div>'; } }
+  c.innerHTML = stats + fl + '<div class="summary-text">' + esc(data.summary || h.assessment || '') + '</div>';
+}
+
+// ==========================================================================
+// Search
+// ==========================================================================
+function renderSearchForm() {
+  document.getElementById('appTitle').textContent = 'Search FRED';
+  document.getElementById('content').innerHTML = '<div class="search-form"><input class="search-input" id="si" type="text" placeholder="Search for economic data (e.g., mortgage rate, oil price)..." /><button class="search-btn" id="sb">Search</button></div><div id="sr"></div>';
+  wireSearch(); document.getElementById('si').focus();
+}
+function renderSearchResults(data) {
+  document.getElementById('appTitle').textContent = data.query ? 'Search: ' + data.query : 'Search FRED';
+  document.getElementById('content').innerHTML = '<div class="search-form"><input class="search-input" id="si" type="text" value="' + escAttr(data.query||'') + '" /><button class="search-btn" id="sb">Search</button></div><div id="sr"></div>';
+  showItems(data); wireSearch();
+}
+function wireSearch() {
+  var inp = document.getElementById('si'), btn = document.getElementById('sb');
+  function go() { var q = inp.value.trim(); if(!q)return; btn.disabled=true; btn.textContent='Searching...';
+    callTool('econ_search',{query:q,limit:20}).then(function(res){var d=extractData(res);if(d){S.tabData.search=d;showItems(d);document.getElementById('appTitle').textContent='Search: '+q;}}).catch(function(e){showError(e.message);}).finally(function(){btn.disabled=false;btn.textContent='Search';}); }
+  btn.addEventListener('click', go); inp.addEventListener('keydown', function(e){if(e.key==='Enter')go();});
+}
+function showItems(data) {
+  var results = data.results || [], el = document.getElementById('sr');
+  if (!results.length) { el.innerHTML = '<div class="prompt"><span class="prompt-text">No results</span></div>'; return; }
+  var html = '';
+  for (var i = 0; i < results.length; i++) { var r = results[i]; html += '<div class="search-item"><div class="search-item-title">' + esc(r.title||r.name||'') + '<span class="search-item-id">' + esc(r.id||r.series_id||'') + '</span></div><div class="search-item-meta">' + esc([r.frequency,r.units,r.seasonal_adjustment].filter(Boolean).join(' · ')) + '</div></div>'; }
+  el.innerHTML = html;
+}
+
+// ==========================================================================
+// Tools Reference
+// ==========================================================================
+function renderTools() {
+  document.getElementById('appTitle').textContent = 'Available Tools';
+  document.getElementById('askBtn').style.display = 'none';
+  var c = document.getElementById('content');
+  var html = '<div class="tools-intro">' +
+    'This server provides <strong>13 tools</strong> your AI can call directly. ' +
+    'One opens this interactive app, 9 fetch live data from public APIs, and 3 are <strong>stateful</strong> — ' +
+    'they track how signals change over time using a local database with 12-month historical backfill. ' +
+    'All tools are <strong>read-only</strong>. ' +
+    'Periods accept values like <code>1y</code>, <code>2y</code>, <code>5y</code>, <code>10y</code>, <code>20y</code>.' +
+    '</div>';
+  for (var i = 0; i < TOOL_CATALOG.length; i++) {
+    var t = TOOL_CATALOG[i];
+    var isApp = t.name === 'open_economic_app';
+    var isStateful = t.stateful;
+    var badgeClass = isApp ? ' interactive' : isStateful ? ' stateful' : '';
+    var badgeLabel = isApp ? 'interactive' : isStateful ? 'stateful' : 'read-only';
+    html += '<div class="tool-card"><div class="tool-card-head">' +
+      '<span class="tool-card-icon">' + t.icon + '</span>' +
+      '<span class="tool-card-name">' + esc(t.label) + '</span>' +
+      '<span class="tool-card-badge' + badgeClass + '">' + badgeLabel + '</span>' +
+      '</div>' +
+      '<div class="tool-card-desc">' + esc(t.desc) + '</div>' +
+      '<div class="tool-card-row">' +
+      '<span><span class="label">Usage: </span><code>' + esc(t.usage) + '</code></span>' +
+      '</div>' +
+      '<div class="tool-card-row">' +
+      '<span><span class="label">Source: </span><span class="source">' + esc(t.source) + '</span></span>' +
+      '</div></div>';
+  }
+  c.innerHTML = html;
+}
+
+// ==========================================================================
+// Period Selector
+// ==========================================================================
+function setPeriodUI(p) { var b = document.querySelectorAll('.period-btn'); for (var i = 0; i < b.length; i++) b[i].classList.toggle('active', b[i].dataset.period === p); }
+document.getElementById('toolbar').addEventListener('click', function(e) {
+  var btn = e.target.closest('.period-btn'); if (!btn || btn.disabled) return;
+  var period = btn.dataset.period, tabId = S.activeTab; if (!tabId || period === S.tabPeriod[tabId]) return;
+  var tab = TABS[tabId]; if (!tab || !tab.hasPeriod) return;
+  S.tabPeriod[tabId] = period; setPeriodUI(period);
+  var btns = document.querySelectorAll('.period-btn'); for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
+  var args = { period: period };
+  if (tabId === 'compare') { var orig = S.initialInput || {}, cached = S.tabData.compare;
+    if (orig.series_a) { args.series_a = orig.series_a; args.series_b = orig.series_b; }
+    else if (cached && cached.series && cached.series.length >= 2) { args.series_a = cached.series[0].series_id; args.series_b = cached.series[1].series_id; } }
+  callTool(tab.tool, args).then(function(result) { if (S.activeTab !== tabId) return; var data = extractData(result); if (data) { S.tabData[tabId] = data; renderTab(tabId, data); } })
+    .catch(function(err) { showError(err.message); }).finally(function() { var b2 = document.querySelectorAll('.period-btn'); for (var j = 0; j < b2.length; j++) b2[j].disabled = false; });
+});
+
+// ==========================================================================
+// Ask AI
+// ==========================================================================
+document.getElementById('askBtn').addEventListener('click', function() {
+  var btn = this, tabId = S.activeTab, data = S.tabData[tabId]; if (!data) return;
+  var orig = btn.innerHTML; btn.disabled = true;
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"/></svg> Asking...';
+  var ctx = '';
+  if (tabId === 'overview') { var p = data.recession_probability ? data.recession_probability.probability || 0 : 0; ctx = 'Recession probability: ' + (p*100).toFixed(0) + '%\n' + (data.recession_probability?data.recession_probability.assessment||'':'') + '\n\n' + (data.signals||[]).map(function(s){return s.title+': '+s.summary;}).join('\n'); }
+  else { ctx = (data.title || TABS[tabId].label) + '\n' + (data.summary || ''); }
+  sendMsg('[Economic Intelligence — ' + TABS[tabId].label + ']\n' + ctx + '\n\nAnalyze this data. Key takeaways?')
+    .catch(function(err){showError(err.message);}).finally(function(){btn.disabled=false;btn.innerHTML=orig;});
+});
+
+// ==========================================================================
+// Utilities
+// ==========================================================================
+function esc(t) { if(!t)return''; var d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+function escAttr(t) { return (t||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ==========================================================================
+// Boot
+// ==========================================================================
+buildTabs();
+initMCP();
+</script>
+</body>
+</html>

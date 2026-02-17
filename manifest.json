@@ -1,0 +1,68 @@
+{
+  "manifest_version": "0.4",
+  "name": "economic-intelligence-mcp",
+  "display_name": "Economic Intelligence",
+  "version": "0.1.0",
+  "description": "MCP App Server for economic data — interest rates, jobs, inflation, housing, bank health. Interactive charts and cross-source analysis from FRED, BLS, Treasury, and FDIC data.",
+  "author": {
+    "name": "MCPBundles",
+    "url": "https://mcpbundles.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thinkchainai/economic-intelligence-mcp"
+  },
+  "homepage": "https://mcpbundles.com",
+  "server": {
+    "type": "uv",
+    "entry_point": "src/economic_intelligence/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "python", "-m", "economic_intelligence.server"],
+      "env": {
+        "FRED_API_KEY": "${user_config.fred_api_key}",
+        "BLS_API_KEY": "${user_config.bls_api_key}",
+        "DATA_DIR": "${HOME}/.economic-mcp"
+      }
+    }
+  },
+  "user_config": {
+    "fred_api_key": {
+      "type": "string",
+      "title": "FRED API Key",
+      "description": "Free API key from https://fred.stlouisfed.org/docs/api/api_key.html — takes 30 seconds to get one.",
+      "sensitive": true,
+      "required": true
+    },
+    "bls_api_key": {
+      "type": "string",
+      "title": "BLS API Key (optional)",
+      "description": "Free API key from https://www.bls.gov/developers/ — increases rate limits from 25 to 500 requests/day.",
+      "sensitive": true,
+      "required": false
+    }
+  },
+  "tools": [
+    {"name": "open_economic_app", "description": "Open the interactive Economic Intelligence dashboard — charts, recession gauge, signals, data explorer"},
+    {"name": "econ_interest_rates", "description": "Current and historical interest rates — Fed funds, 10Y/30Y treasury, mortgage rates, yield curve"},
+    {"name": "econ_inflation", "description": "CPI, PCE, and core inflation trends with year-over-year analysis"},
+    {"name": "econ_jobs", "description": "Employment data — unemployment rate, nonfarm payrolls, wage growth, job openings"},
+    {"name": "econ_housing", "description": "Housing data — starts, permits, home prices, mortgage rates, affordability index"},
+    {"name": "econ_bank_health", "description": "FDIC bank health indicators — capital ratios, problem bank count, failure history"},
+    {"name": "econ_gdp", "description": "GDP growth — nominal, real, and annualized growth rate"},
+    {"name": "econ_treasury", "description": "Treasury rates, yield spreads, and federal debt levels"},
+    {"name": "econ_compare", "description": "Compare any two economic data series on the same chart with correlation analysis"},
+    {"name": "econ_search", "description": "Search FRED for any economic data series by keyword"},
+    {"name": "econ_signal_history", "description": "How economic signals have changed over time — backfilled 12 months on first run"},
+    {"name": "econ_changes", "description": "What economic signals shifted recently — compares latest values to prior snapshots"},
+    {"name": "econ_alerts", "description": "Active economic alerts — threshold crossings, trend reversals, recession probability shifts"}
+  ],
+  "keywords": ["economics", "finance", "FRED", "interest-rates", "inflation", "jobs", "housing", "recession", "GDP"],
+  "license": "MIT",
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "python": ">=3.11"
+    }
+  }
+}
