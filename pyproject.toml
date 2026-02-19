@@ -31,6 +31,7 @@ dependencies = [
     "greenlet>=3.0.0",
     "aiosqlite>=0.20.0",
     "mcp[cli]>=1.0.0",
+    "mcpbundles-app-ui>=0.3.0",
 ]
 
 [project.urls]

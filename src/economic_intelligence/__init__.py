@@ -5,3 +5,10 @@ Interactive charts and cross-source analysis from FRED, BLS, Treasury, and FDIC 
 """
 
 __version__ = "0.1.0"
+
+from .app_definition import EconomicIntelligenceApp
+
+
+def get_app_html() -> str:
+    """Return the MCP App HTML content. Re-renders each call for hot reload."""
+    return EconomicIntelligenceApp().render()

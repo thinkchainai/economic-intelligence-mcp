@@ -11,12 +11,12 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import date, datetime
-from pathlib import Path
 from typing import AsyncIterator, Optional
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
+from . import get_app_html
 from .core.clients import bls, fdic, fred, treasury
 from .core.models import DataSource
 from .core.scoring import (
@@ -31,8 +31,6 @@ from .ingestors import detect_alerts, detect_changes, get_recession_history, get
 from .scheduler import SignalScheduler
 
 logger = logging.getLogger(__name__)
-
-UI_DIR = Path(__file__).parent / "ui"
 
 MCP_APP_MIME = "text/html;profile=mcp-app"
 
@@ -92,7 +90,7 @@ APP_RESOURCE_URI = "ui://economic-mcp/app"
 )
 def app_ui() -> str:
     """Economic Intelligence — interactive charts, dashboard, and search."""
-    return (UI_DIR / "app.html").read_text()
+    return get_app_html()
 
 
 # ─── Tool 1: Interest Rates ──────────────────────────────────────────────────
