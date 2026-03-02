@@ -9,6 +9,6 @@ __version__ = "0.1.0"
 from .app_definition import EconomicIntelligenceApp
 
 
-def get_app_html() -> str:
+def get_app_html(tool_slug_map: dict[str, str] | None = None) -> str:
     """Return the MCP App HTML content. Re-renders each call for hot reload."""
-    return EconomicIntelligenceApp().render()
+    return EconomicIntelligenceApp().render(tool_slug_map=tool_slug_map)

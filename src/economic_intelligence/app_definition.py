@@ -31,14 +31,46 @@ class EconomicIntelligenceApp(App):
 
     tool_name = "open_economic_app"
     tabs = [
-        {"id": "overview", "label": "Overview", "tool": "open_economic_app", "type": "dashboard"},
+        {
+            "id": "overview",
+            "label": "Overview",
+            "tool": "open_economic_app",
+            "dataDetect": {"hasKey": "recession_probability"},
+            "sections": [
+                {"type": "gauge", "valueKey": "recession_probability.probability", "assessmentKey": "recession_probability.assessment", "label": "Recession Probability"},
+                {"type": "label", "text": "Economic Signals", "countKey": "signals", "countSuffix": " signals", "compute": "count"},
+                {"type": "card-grid", "dataKey": "signals", "titleKey": "title", "scoreKey": "score", "descKey": "summary", "tagsKey": "tags",
+                 "messageTemplate": "[Signal] {title} ({score}) \u2014 {desc}\n\nExplain this signal."},
+                {"type": "timestamp"},
+            ],
+        },
         {"id": "rates", "label": "Rates", "tool": "econ_interest_rates", "type": "chart", "hasPeriod": True},
         {"id": "inflation", "label": "Inflation", "tool": "econ_inflation", "type": "chart", "hasPeriod": True},
         {"id": "jobs", "label": "Jobs", "tool": "econ_jobs", "type": "chart", "hasPeriod": True},
         {"id": "housing", "label": "Housing", "tool": "econ_housing", "type": "chart", "hasPeriod": True},
         {"id": "gdp", "label": "GDP", "tool": "econ_gdp", "type": "chart", "hasPeriod": True},
         {"id": "treasury", "label": "Treasury", "tool": "econ_treasury", "type": "chart", "hasPeriod": True},
-        {"id": "banking", "label": "Banking", "tool": "econ_bank_health", "type": "banking", "defaultArgs": {"years": 5}},
+        {
+            "id": "banking",
+            "label": "Banking",
+            "tool": "econ_bank_health",
+            "defaultArgs": {"years": 5},
+            "dataDetect": {"hasKey": "health_summary"},
+            "sections": [
+                {"type": "stats", "items": [
+                    {"key": "health_summary.total_institutions", "label": "Institutions"},
+                    {"key": "health_summary.problem_institutions", "label": "Problem Banks"},
+                    {"key": "failure_count", "label": "Recent Failures"},
+                ]},
+                {"type": "label", "text": "Recent Failures"},
+                {"type": "list", "dataKey": "recent_failures", "fields": [
+                    {"key": "institution", "type": "text", "style": "secondary", "flex": 1},
+                    {"key": "city", "type": "text", "style": "muted", "append": {"key": "state", "sep": ", "}},
+                    {"key": "failure_date", "type": "text", "style": "muted-right"},
+                ]},
+                {"type": "text", "key": "summary"},
+            ],
+        },
         {
             "id": "compare", "label": "Compare", "tool": "econ_compare", "type": "chart",
             "hasPeriod": True, "needsArgs": True,
